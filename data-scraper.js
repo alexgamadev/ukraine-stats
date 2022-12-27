@@ -2,6 +2,7 @@ import { JSDOM } from "jsdom";
 import vanillaPuppeteer from "puppeteer";
 import { addExtra } from "puppeteer-extra"; // TODO: maybe change this after this issue is resolved: https://github.com/berstend/puppeteer-extra/issues/748
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
+import extractDailyData from "./data-extracter.js";
 
 
 async function scrapeAll() {
@@ -18,7 +19,7 @@ async function scrapeAll() {
 
     do {
         const response = await page.goto(`https://www.mil.gov.ua/en/news/?page=${pageNum}`, {waitUntil: 'domcontentloaded'});
-        if( response.status() === 404 ) {
+        if( response?.status() === 404 ) {
             errored = true;
             break;
         }
@@ -26,16 +27,15 @@ async function scrapeAll() {
         console.log( "Loaded page " + pageNum );
         const htmlString = await page.content();
         const dom = new JSDOM( htmlString );
-        const articles = dom.window.document.getElementById( "aticle-content").querySelectorAll("h4");
-        articles.forEach( article => {
+        const articles = dom.window.document.getElementById( "aticle-content")?.querySelectorAll("h4");
+        articles?.forEach( article => {
             const { textContent } = article;
-            if( textContent.includes( "The total combat losses of the enemy" ) ) {
-                allArticles.push({
-                    title: article,
-                    content: article.nextElementSibling
-                });
-                articleFound = true;
-                console.log("Articles found: " + allArticles.length);
+            if( textContent?.includes( "The total combat losses of the enemy" ) ) {
+                if( article?.nextElementSibling?.textContent) {
+                    allArticles.push( article?.nextElementSibling?.textContent);
+                    articleFound = true;
+                    console.log("Articles found: " + allArticles.length);
+                }
             }
         })
         if( !articleFound ) {
@@ -51,8 +51,10 @@ async function scrapeAll() {
     } while ( !errored );
   
     allArticles.forEach( article => { 
-        console.log( "Article title: " + article.title.textContent);
-        console.log( "Article content: " + article.content.textContent);
+        //console.log( "Article title: " + article.title.textContent);
+        console.log( "Article content: " + article);
+        const data = extractDailyData(article);
+        console.log( data );
     });
     await browser.close();
 }
